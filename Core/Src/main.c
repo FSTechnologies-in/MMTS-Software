@@ -39,7 +39,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define MODE 2
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -53,7 +53,7 @@ UART_HandleTypeDef huart2;
 char User_Name[30];
 char Mode_of_Rotation[30];
 char Time_Duration[30];
-uint8_t Time_from_Iot;
+int Time_from_Iot;
 char data;
 char buff1[90];
 char buff2[90];
@@ -70,7 +70,7 @@ uint8_t sw2_flag=0;
 uint8_t time_end_flag=0;
 uint8_t iot_flag=0;
 uint8_t event_flag=0;
-
+uint8_t mode=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,6 +90,9 @@ void laser_detect(void);
 void timer_start(void);
 void Buzzer(void);
 void motor_drive_stop(void);
+void motor_diagnostic(void);
+int led_diagnostic(void);
+void laser_diagnostic(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -111,7 +114,7 @@ int data_from_iot(void)
                 if(Wait_for("{")==1)
                 {
         	       Copy_upto("}", buff1);
-//        	       HAL_UART_Transmit(&huart2, buff1, strlen(buff1),100);
+        	       HAL_UART_Transmit(&huart2, buff1, strlen(buff1),100);
                 }
 
 		while (1)
@@ -127,6 +130,17 @@ int data_from_iot(void)
 			   {
 				User_Name[name_increment] = buff1[count + 1];
 				name_increment++;
+			   }
+			   else
+			   {
+				   if (buff1[count + 2] == '}')
+					  {
+					   quote_double=0;
+					   sprintf(buff2, "Name:%s\r\n", User_Name);
+					   HAL_UART_Transmit(&huart2, buff2, strlen(buff2), 100);
+						  mode=2;
+						  break;
+					  }
 			   }
 		    }
 
@@ -146,32 +160,70 @@ int data_from_iot(void)
 				Time_Duration[time_increment] = buff1[count + 1];
 				time_increment++;
 			  }
-		   }
+			  else
+			  {
 
-		  if (quote_double == 12)
-		  {
-			break;
-		  }
+			  }
+		   }
+		   if (quote_double == 14)
+		   		   {
+			   quote_double=0;
+			   	   	   	   	   	   mode=1;
+			  					  break;
+		   		   }
+//		  if (quote_double == 12)
+//		  {
+//			  mode=2;
+//			break;
+//		  }
 		  ++count;
           }
 
-	Time_from_Iot = atoi(Time_Duration);
-	sprintf(buff2,"Mode:%d\r\n",Time_from_Iot);
-	HAL_UART_Transmit(&huart2, buff2,strlen(buff2),100);
-	if(strcmp(Mode_of_Rotation,"clock")==0 && Time_from_Iot)
-	{
-		memset(Mode_of_Rotation,0,sizeof(Mode_of_Rotation));
-               sprintf(buff2,"Duration:%d\r\n",Time_from_Iot);
-	       HAL_UART_Transmit(&huart2, buff2,strlen(buff2),100);
-	       Uart_flush();
-	       return 1;
+
 	}
-	else
+	if (mode == 1) {
+				Time_from_Iot = atoi(Time_Duration);
+				sprintf(buff2, "Time:%d\r\n", Time_from_Iot);
+				HAL_UART_Transmit(&huart2, buff2, strlen(buff2), 100);
+				if (strcmp(Mode_of_Rotation, "Slice") == 0 && Time_from_Iot) {
+					memset(Mode_of_Rotation, 0, sizeof(Mode_of_Rotation));
+					sprintf(buff2, "Duration:%d\r\n", Time_from_Iot);
+					HAL_UART_Transmit(&huart2, buff2, strlen(buff2), 100);
+					Uart_flush();
+					return 1;
+				} else {
+					HAL_UART_Transmit(&huart2, "exit\r\n", strlen("exit\r\n"), 100);
+					return 0;
+				}
+			}
+	if(mode==2)
 	{
-	       HAL_UART_Transmit(&huart2, "exit\r\n", strlen("exit\r\n"),100);
-	       return 0;
+
+		if(strcmp(User_Name,"MT") ==0)
+			{
+				//call motor function
+				motor_diagnostic();
+				Uart_write(2);
+				return 0;
+			}
+		 if(strcmp(User_Name,"LT") ==0)
+			{
+				//call led function
+				led_diagnostic();
+				Uart_write(3);
+
+			}
+		 if(strcmp(User_Name,"LS") ==0)
+			{
+				//call laser function
+				laser_diagnostic();
+				return 0;
+			}
+			else
+			{
+				return 0;
+			}
 	}
-     }
 }
 
 void motor_drive_clockwise(void)
@@ -182,8 +234,8 @@ void motor_drive_clockwise(void)
 	 * Motor Input 2 - RESET
 	 */
 
-	HAL_UART_Transmit(&huart2, "clock enter\r\n", strlen("clock enter\r\n"),100);
-	TIM2->CCR1 = 40;
+	HAL_UART_Transmit(&huart2, "clockwise enter\r\n", strlen("clockwise enter\r\n"),100);
+	TIM2->CCR1 = 25;
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, SET); //Motor ON
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, RESET); //Direction of Pin(CLOCK WISE)
 }
@@ -196,7 +248,7 @@ void motor_drive_anticlockwise(void)
 	 * Motor Input 2- SET
 	 */
 
-	HAL_UART_Transmit(&huart2, "motor enter\r\n", strlen("motor enter\r\n"),100);
+	HAL_UART_Transmit(&huart2, "anti clockwise motor enter\r\n", strlen("anti clockwise motor enter\r\n"),100);
 	TIM2->CCR1 = 25;
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, SET); //Motor ON
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, SET); //Direction of Pin(COUNTER CLOCK WISE)
@@ -234,7 +286,84 @@ void Buzzer(void)
 	HAL_Delay(500);
 	HAL_GPIO_WritePin(GPIOB, BUZZER_Pin, 0);
 }
+void motor_diagnostic(void)
+{
+	TIM2->CCR1 = 25;
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, RESET); //Direction of Pin(CLOCK WISE)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, SET); //Motor ON
 
+	//HAL_Delay(1000);
+  while(1)
+  {
+
+	if (HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == 0)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, RESET); //Motor OFF
+		HAL_Delay(1000);
+	TIM2->CCR1 = 25;
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, SET); //Direction of Pin(COUNTER CLOCK WISE)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, SET); //Motor ON
+	HAL_Delay(1000);
+
+	}
+	if(HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == 0)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, RESET); //Motor OFF
+		mode=0;
+			iot_flag = 0;
+			Uart_flush();
+		break;
+	}
+
+  }
+
+}
+int led_diagnostic(void)
+{
+	HAL_UART_Transmit(&huart2, "LED\r\n",strlen("LED\r\n"),1000);
+	for(int led=0;led<5;led++)
+	{
+		HAL_GPIO_TogglePin(GPIOA, LED_Pin);
+		HAL_Delay(300);
+	}
+	memset(User_Name,0,sizeof(User_Name));
+	mode=0;
+	iot_flag = 0;
+	Uart_flush();
+	return 0;
+}
+void laser_diagnostic(void)
+{
+	volatile long int delay=0;
+	int count_d=0;
+	HAL_UART_Transmit(&huart2, "Shoot\r\n",strlen("Shoot\r\n"),1000);
+	while(1)
+	{
+		delay++;
+		if(delay==100000)
+		{
+			delay=0;
+			count_d++;
+
+			if(count_d>10)
+				break;
+		}
+
+		if (HAL_GPIO_ReadPin(GPIOC, LASER_Pin) == 1)
+		{
+			HAL_UART_Transmit(&huart2, "Shoot succ\r\n",strlen("Shoot succ\r\n"),1000);
+			Uart_write(4);
+			Uart_flush();
+			break;
+		}
+
+	}
+	HAL_UART_Transmit(&huart2, "Shoot Done\r\n",strlen("Shoot Done\r\n"),1000);
+	mode=0;
+    iot_flag = 0;
+    Uart_flush();
+
+}
 void laser_detect(void)
 {
 	 /*
@@ -243,21 +372,21 @@ void laser_detect(void)
 	 * stop the timer.
 	 *
 	 */
-	if (HAL_GPIO_ReadPin(GPIOC, LASER_Pin) == 1)
-	{
-		HAL_TIM_Base_Stop_IT(&htim6);
-		time_flag = 0; // Reset timer flag for another time will execute this function
-		HAL_UART_Transmit(&huart2, "laser enter\r\n", strlen("laser enter\r\n"),100);
-		Buzzer();
-		Uart_write(1);
-		memset(Time_Duration,0,sizeof(Time_Duration));
-		HAL_Delay(5000);
-		motor_drive_anticlockwise();
-
-         sw1_flag=1;// Increment sw flag to turn on switch sw2
-		count_sec=0;
-
-	}
+//	if (HAL_GPIO_ReadPin(GPIOC, LASER_Pin) == 1)
+//	{
+//		HAL_TIM_Base_Stop_IT(&htim6);
+//		time_flag = 0; // Reset timer flag for another time will execute this function
+//		HAL_UART_Transmit(&huart2, "laser enter\r\n", strlen("laser enter\r\n"),100);
+//		Buzzer();
+//		Uart_write(1);
+//		memset(Time_Duration,0,sizeof(Time_Duration));
+//		HAL_Delay(5000);
+//		motor_drive_anticlockwise();
+//
+//         sw1_flag=1;// Increment sw flag to turn on switch sw2
+//		count_sec=0;
+//
+//	}
 
 }
 
@@ -299,7 +428,7 @@ int main(void)
   Ringbuf_init ();
   HAL_TIM_Base_Start(&htim2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
+  HAL_UART_Transmit(&huart2, "welcome\r\n",strlen("welcome\r\n"), 100);
 
   /* USER CODE END 2 */
 
@@ -313,7 +442,7 @@ int main(void)
 		if (data_from_iot())    // Data_from_IoT function return 1 then set the I0T flag
 		    iot_flag = 1;
 	}
-	if (iot_flag)
+	if (mode==1)
 	{
 		//if IoT flag is set enter into the  function
 		 /*
@@ -323,7 +452,7 @@ int main(void)
 		if ( event_flag == 0)
 		{
 			event_flag++;
-			HAL_UART_Transmit(&huart2, "anticlockwise motor start\r\n",strlen("anticlockwise motor start\r\n"), 100);
+			HAL_UART_Transmit(&huart2, "clockwise motor start\r\n",strlen("clockwise motor start\r\n"), 100);
 			motor_drive_clockwise();
 		}
 
@@ -331,7 +460,7 @@ int main(void)
 		* once motor touch switch-2 then motor stop, timer starts for 10 seconds,
 		* and motor also stay in 90 degree position
 		*/
-		if (HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == 1 && event_flag == 1)
+		if (HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == 0 && event_flag == 1)
 		{
            event_flag++;
 			HAL_UART_Transmit(&huart2, "motor stop\r\n",strlen("motor stop\r\n"), 100);
@@ -345,12 +474,13 @@ int main(void)
 		 /*
 		 * Once motor touch the switch-1 again(default position) stop the motor
 		 */
-	   if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == 1 && event_flag == 2)
+	   if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == 0 && event_flag == 2)
             {
 		time_end_flag=0;
-		HAL_UART_Transmit(&huart2, "default position\r\n",strlen("default position\r\n"), 100);
+		HAL_UART_Transmit(&huart2, "Home position\r\n",strlen("Home position\r\n"), 100);
 		motor_drive_stop();
 		iot_flag = 0;
+		mode=0;
 		event_flag=0;
 	   }
 	 /*
@@ -619,7 +749,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : SW1_Pin */
   GPIO_InitStruct.Pin = SW1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(SW1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LASER_Pin */
@@ -638,7 +768,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : SW2_Pin */
   GPIO_InitStruct.Pin = SW2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(SW2_GPIO_Port, &GPIO_InitStruct);
 
 }
