@@ -84,6 +84,7 @@ char R_data[22];
 char P_data[22];
 char H_data[22];
 char actual_data[100];
+int sensor_flag=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -423,10 +424,14 @@ void timer_start(void)
 	  /*
 	  *  start timer for 10 seconds and buzzer on
 	  */
+	if(sensor_flag==0)
+	{
 	Vibration_sensor_calibration();
+		sensor_flag=1;
+	}
 	HAL_UART_Transmit(&huart2, "time enter\r\n", strlen("time enter\r\n"), 100);
 	Buzzer();
-	HAL_TIM_Base_Start_IT(&htim6);
+	
 	time_flag = 1; // Set Timer flag to indicate the timer on call laser detect function in superloop
 }
 
@@ -554,14 +559,10 @@ void laser_detect(void)
 	 * stop the timer.
 	 *
 	 */
-//	int laser_flag=0;
-//	if(laser_flag==0)
-//	{
-//		Vibration_sensor_calibration();
-//		laser_flag=1;
-//	}
 
-
+     if(sensor_flag==1)
+     { 
+	HAL_TIM_Base_Start_IT(&htim6);
 	 vibration_livedata();
 			  if(((Pitch_live )> Pitch_calib+2) )
 			  	  {
@@ -577,11 +578,12 @@ void laser_detect(void)
 						memset(Time_Duration,0,sizeof(Time_Duration));
 						HAL_Delay(5000);
 						motor_drive_anticlockwise();
-
 						 sw1_flag=1;// Increment sw flag to turn on switch sw2
 						count_sec=0;
-
+						sensor_flag=0;
 			  	  }
+	     
+     }
 //	if (HAL_GPIO_ReadPin(GPIOC, LASER_Pin) == 1)
 //	{
 //		HAL_TIM_Base_Stop_IT(&htim6);
@@ -1041,6 +1043,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 	if(count_sec==Time_from_Iot)
 	{
 		Uart_write(0);
+		sensor_flag=0;
 		memset(Time_Duration,0,sizeof(Time_Duration));
 		Uart_flush();
 		HAL_TIM_Base_Stop_IT(&htim6);
