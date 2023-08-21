@@ -502,6 +502,7 @@ void laser_diagnostic(void)
 	int shoot_flag=0;
 	HAL_UART_Transmit(&huart2, "Shoot\r\n",strlen("Shoot\r\n"),1000);
 	 Vibration_sensor_calibration();
+	int count_time_flag=0;
 	while(1)
 	{
 
@@ -519,15 +520,11 @@ void laser_diagnostic(void)
 					shoot_flag=1;
 					break;
 		  	  }
-//		if (HAL_GPIO_ReadPin(GPIOC, LASER_Pin) == 1)
-//		{
-//			Buzzer();
-//			HAL_UART_Transmit(&huart2, "Shoot succ\r\n",strlen("Shoot succ\r\n"),1000);
-//			Uart_write(4);
-//			Uart_flush();
-//			shoot_flag=1;
-//			break;
-//		}
+         count_time_flag++;
+		if(count_time_flag>80)
+		{
+			break;
+		}
 
 
 	}
