@@ -309,14 +309,14 @@ void Vibration_sensor_calibration(void)
 			if(count_sensor > 15)
 			{
 				HAL_UART_Transmit(&huart2, "greater100\n\r", 15,100);
-				 Height_calib = atof(H_data);
-				 Pitch_calib = atof(P_data);
-				 Roll_calib = atof(R_data);
-				 if(Height_calib != 0 && Pitch_calib!=0 && Roll_calib != 0 )
-				 {
-					 HAL_UART_Transmit(&huart2, "break\n\r", 7,100);
+				 Height_calib = atoi(H_data);
+				 Pitch_calib = atoi(P_data);
+				 Roll_calib = atoi(R_data);
+//				 if(Height_calib != 0 && Pitch_c && Roll_calib != 0 )
+//				 {
+//					 HAL_UART_Transmit(&huart2, "break\n\r", 7,100);
 					 break;
-				 }
+//				 }
 			}
 
     }
@@ -348,7 +348,7 @@ void vibration_livedata(void)
 		    		   actal_i++;
 		    	   }while(actual_data[actal_i]!='\t');
 //		    	    HAL_UART_Transmit(&huart2,R_data ,sizeof(R_data),100);
-		    	   Roll_live = atof(R_data);
+		    	   Roll_live = atoi(R_data);
 //		           HAL_UART_Transmit(&huart2, "\n\r", 2,100);
 
 		           data_i=0;
@@ -363,7 +363,7 @@ void vibration_livedata(void)
 //		    	    HAL_UART_Transmit(&huart2,P_data ,sizeof(P_data),100);
 	//
 //		           HAL_UART_Transmit(&huart2, "\n\r", 2,100);
-		    	   Pitch_live = atof(P_data);
+		    	   Pitch_live = atoi(P_data);
 
 		           data_i=0;
 				  actal_i +=3;
@@ -375,7 +375,7 @@ void vibration_livedata(void)
 			   }while(actual_data[actal_i]!='\n');
 //				HAL_UART_Transmit(&huart2,H_data ,sizeof(H_data),100);
 
-			   Height_live = atof(H_data);
+			   Height_live = atoi(H_data);
 
 		       }
 				memset(actual_data,0,sizeof(actual_data));
@@ -428,10 +428,10 @@ void timer_start(void)
 	{
 	Vibration_sensor_calibration();
 		sensor_flag=1;
+		Buzzer();
 	}
 	HAL_UART_Transmit(&huart2, "time enter\r\n", strlen("time enter\r\n"), 100);
-	Buzzer();
-	
+
 	time_flag = 1; // Set Timer flag to indicate the timer on call laser detect function in superloop
 }
 
@@ -502,7 +502,7 @@ void laser_diagnostic(void)
 	int shoot_flag=0;
 	HAL_UART_Transmit(&huart2, "Shoot\r\n",strlen("Shoot\r\n"),1000);
 	 Vibration_sensor_calibration();
-	int count_time_flag=0;
+	 Buzzer();
 	while(1)
 	{
 
@@ -513,18 +513,24 @@ void laser_diagnostic(void)
 		  		  HAL_UART_Transmit(&huart2, buf,sizeof(buf),1000);
 		  		  sprintf(buf,"Pitchcalib:%d\r\n",Pitch_calib);
 		  		  HAL_UART_Transmit(&huart2, buf,sizeof(buf),1000);
-		  		Buzzer();
+					Buzzer();
+					HAL_Delay(300);
+					Buzzer();
 					HAL_UART_Transmit(&huart2, "Shoot succ\r\n",strlen("Shoot succ\r\n"),1000);
 					Uart_write(4);
 					Uart_flush();
 					shoot_flag=1;
 					break;
 		  	  }
-         count_time_flag++;
-		if(count_time_flag>80)
-		{
-			break;
-		}
+//		if (HAL_GPIO_ReadPin(GPIOC, LASER_Pin) == 1)
+//		{
+//			Buzzer();
+//			HAL_UART_Transmit(&huart2, "Shoot succ\r\n",strlen("Shoot succ\r\n"),1000);
+//			Uart_write(4);
+//			Uart_flush();
+//			shoot_flag=1;
+//			break;
+//		}
 
 
 	}
@@ -556,10 +562,11 @@ void laser_detect(void)
 	 * stop the timer.
 	 *
 	 */
-
+//	Buzzer();
      if(sensor_flag==1)
-     { 
+     {
 	HAL_TIM_Base_Start_IT(&htim6);
+
 	 vibration_livedata();
 			  if(((Pitch_live )> Pitch_calib+2) )
 			  	  {
@@ -569,8 +576,11 @@ void laser_detect(void)
 			  		  HAL_UART_Transmit(&huart2, buf,sizeof(buf),1000);
 			  		HAL_TIM_Base_Stop_IT(&htim6);
 						time_flag = 0; // Reset timer flag for another time will execute this function
-						HAL_UART_Transmit(&huart2, "laser enter\r\n", strlen("laser enter\r\n"),100);
+						HAL_UART_Transmit(&huart2, "shoot success\r\n", strlen("shoot success\r\n"),100);
 						Buzzer();
+						HAL_Delay(300);
+						Buzzer();
+
 						Uart_write(1);
 						memset(Time_Duration,0,sizeof(Time_Duration));
 						HAL_Delay(5000);
@@ -579,7 +589,7 @@ void laser_detect(void)
 						count_sec=0;
 						sensor_flag=0;
 			  	  }
-	     
+
      }
 //	if (HAL_GPIO_ReadPin(GPIOC, LASER_Pin) == 1)
 //	{
