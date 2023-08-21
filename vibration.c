@@ -309,9 +309,9 @@ void Vibration_sensor_calibration(void)
 			if(count_sensor > 15)
 			{
 				HAL_UART_Transmit(&huart2, "greater100\n\r", 15,100);
-				 Height_calib = atoi(H_data);
-				 Pitch_calib = atoi(P_data);
-				 Roll_calib = atoi(R_data);
+				 Height_calib = atof(H_data);
+				 Pitch_calib = atof(P_data);
+				 Roll_calib = atof(R_data);
 				 if(Height_calib != 0 && Pitch_calib!=0 && Roll_calib != 0 )
 				 {
 					 HAL_UART_Transmit(&huart2, "break\n\r", 7,100);
@@ -348,7 +348,7 @@ void vibration_livedata(void)
 		    		   actal_i++;
 		    	   }while(actual_data[actal_i]!='\t');
 //		    	    HAL_UART_Transmit(&huart2,R_data ,sizeof(R_data),100);
-		    	   Roll_live = atoi(R_data);
+		    	   Roll_live = atof(R_data);
 //		           HAL_UART_Transmit(&huart2, "\n\r", 2,100);
 
 		           data_i=0;
@@ -363,7 +363,7 @@ void vibration_livedata(void)
 //		    	    HAL_UART_Transmit(&huart2,P_data ,sizeof(P_data),100);
 	//
 //		           HAL_UART_Transmit(&huart2, "\n\r", 2,100);
-		    	   Pitch_live = atoi(P_data);
+		    	   Pitch_live = atof(P_data);
 
 		           data_i=0;
 				  actal_i +=3;
@@ -375,7 +375,7 @@ void vibration_livedata(void)
 			   }while(actual_data[actal_i]!='\n');
 //				HAL_UART_Transmit(&huart2,H_data ,sizeof(H_data),100);
 
-			   Height_live = atoi(H_data);
+			   Height_live = atof(H_data);
 
 		       }
 				memset(actual_data,0,sizeof(actual_data));
